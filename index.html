@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#1e1e1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Morning Briefing" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Morning Briefing</title>
+</head>
+<body>
+
+  <!-- SPLASH -->
+  <div id="splash" class="splash">
+    <div class="splash-mark">
+      <div class="splash-sun"></div>
+      <div class="splash-line"></div>
+    </div>
+    <div class="splash-name">Morning&nbsp;Briefing</div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <button id="menuBtn" class="icon-btn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <h1 id="viewTitle" class="topbar-title">Riassunto</h1>
+      <button id="topAction" class="icon-btn" aria-label="Azione"></button>
+    </header>
+
+    <!-- Drawer -->
+    <div id="scrim" class="scrim hidden"></div>
+    <nav id="drawer" class="drawer">
+      <div class="drawer-head">
+        <div class="drawer-mark"></div>
+        <div>
+          <div class="drawer-title">Morning Briefing</div>
+          <div class="drawer-sub" id="drawerDate">—</div>
+        </div>
+      </div>
+      <button class="nav-item" data-view="riassunto"><span class="nav-dot"></span>Riassunto Giornaliero</button>
+      <button class="nav-item" data-view="calendario"><span class="nav-dot"></span>Calendario</button>
+      <button class="nav-item" data-view="task"><span class="nav-dot"></span>Task</button>
+      <button class="nav-item" data-view="energy"><span class="nav-dot"></span>Energy Score</button>
+      <button class="nav-item" data-view="revisione"><span class="nav-dot"></span>Revisione Giornaliera</button>
+      <div class="nav-sep"></div>
+      <button class="nav-item" data-view="impostazioni"><span class="nav-dot"></span>Impostazioni</button>
+    </nav>
+
+    <!-- View container -->
+    <main id="viewRoot" class="view-root"></main>
+  </div>
+
+  <!-- Modal host -->
+  <div id="modalRoot"></div>
+
+  <!-- Toast host -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
