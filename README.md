@@ -15,14 +15,6 @@ PWA personale installabile su iPhone. Tutto locale, nessun account, nessun costo
 
 Energy Score, auto-import e notifiche arrivano nelle Fasi 2–3 (già a specifica).
 
-## Come metterla online gratis (GitHub Pages)
-1. Crea un repository su GitHub (es. `morning-briefing`), anche privato.
-2. Carica **tutti i file di questa cartella** mantenendo la struttura (compresa la cartella `icons/`).
-3. Repo → **Settings → Pages** → Source: `Deploy from a branch` → Branch: `main` / `/root` → Save.
-4. Dopo 1–2 minuti avrai un URL tipo `https://TUONOME.github.io/morning-briefing/`.
-
-> Nota PWA: le PWA richiedono HTTPS. GitHub Pages è già HTTPS, quindi è perfetto.
-
 ## Come installarla sull'iPhone
 1. Apri l'URL in **Safari** (non Chrome: solo Safari può installare PWA su iOS).
 2. Tocca il pulsante **Condividi** → **Aggiungi a Home**.
