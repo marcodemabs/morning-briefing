@@ -1,6 +1,6 @@
 /* Service worker · offline-first per il core.
    La rete servirà solo in Fase 3 (import mail/calendario). */
-const CACHE = 'mb-cache-v1';
+const CACHE = 'mb-cache-v2';
 const ASSETS = [
   './',
   './index.html',
