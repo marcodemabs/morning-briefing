@@ -42,7 +42,6 @@
   // ============================================================
   function boot() {
     applyTheme();
-    applyFont();
     // splash → app
     setTimeout(() => { $('#splash').classList.add('hidden'); $('#app').classList.remove('hidden'); }, 1300);
     wireChrome();
@@ -74,7 +73,6 @@
     $('meta[name="theme-color"]')?.setAttribute('content', meta || '#1e1e1e');
   }
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (Store.prefs().tema==='auto') applyTheme(); });
-  function applyFont(){ document.body.style.setProperty('--fs', (16 * Store.prefs().fontScale) + 'px'); }
 
   // ============================================================
   //  RENDER ROUTER
@@ -149,7 +147,7 @@
         card.append(el('div',{class:'cat-row'},
           el('div',{class:'cat-name'}, cat.nome),
           el('div',{class:'cat-bar'}, el('div',{class:'cat-fill', style:`width:${Math.round(ore/maxOre*100)}%;background:${cat.colore}`})),
-          el('div',{class:'cat-val'}, fmtOre(ore) + (cat.recupero?' ↓':'')),
+          el('div',{class:'cat-val'}, fmtOre(ore)),
         ));
       }
       root.append(card);
@@ -192,7 +190,7 @@
       el('div',{class:'agenda-bar', style:`background:${c.colore}`}),
       el('div',{class:'agenda-body'},
         el('div',{class:'agenda-title'}, e.titolo, e.ricorrente ? el('span',{class:'rec-badge'},'↻') : null),
-        el('div',{class:'agenda-meta'}, `${c.nome} · ${hhmm(d)}–${hhmm(f)}${c.recupero?' · recupero':''}`),
+        el('div',{class:'agenda-meta'}, `${c.nome} · ${hhmm(d)}–${hhmm(f)}`),
       ),
     );
     return item;
@@ -466,21 +464,14 @@
     temaCard.append(el('div',{class:'hint', style:'margin-top:10px'},'Altri temi VS Code (Nord, Gruvbox, Tokyo Night…) arrivano in Fase 5.'));
     root.append(temaCard);
 
-    // Dimensione testo
-    const fontCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Dimensione testo'));
-    const fchips = el('div',{class:'chips'});
-    [['S',0.9],['M',1],['L',1.15],['XL',1.3]].forEach(([lab,val]) =>
-      fchips.append(el('button',{class:'chip'+(Math.abs(p.fontScale-val)<0.01?' active':''), onclick:()=>{Store.setPref('fontScale',val); applyFont(); render();}}, lab)));
-    fontCard.append(fchips);
-    root.append(fontCard);
-
     // Categorie
-    const catCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Categorie & colori'));
+    const intLabel = { bassa:'bassa', media:'media', alta:'alta' };
+    const catCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Categorie'));
     Store.categorie().forEach(c => {
       catCard.append(el('div',{class:'cat-pick', onclick:()=>openCategoriaEditor(c)},
         el('div',{class:'cat-swatch', style:`background:${c.colore}`}),
         el('div',{style:'flex:1'}, el('div',{style:'font-size:.92rem;font-weight:500'}, c.nome),
-          el('div',{class:'hint'}, c.neutra?'neutra':(c.recupero?'recupero (scarica)':'carico'))),
+          el('div',{class:'hint'}, 'intensità · ' + (intLabel[c.intensitaDefault] || 'media'))),
         el('div',{class:'hint'},'modifica ›'),
       ));
     });
@@ -523,24 +514,39 @@
 
   function openCategoriaEditor(cat) {
     const isNew = !cat;
-    cat = cat ? {...cat} : { id: Store.uid(), nome:'', colore:'#4ea1ff', recupero:false };
+    cat = cat ? {...cat} : { id: Store.uid(), nome:'', colore:null, intensitaDefault:'media' };
     const PALETTE = ['#4ea1ff','#c792ea','#26c6da','#4ec97a','#ffb454','#f78c6c','#f14c4c','#bd93f9','#50fa7b','#61afef','#e5c07b','#98c379'];
-    const nome = el('input',{value:cat.nome, placeholder:'Nome categoria'});
+    // colori già usati da ALTRE categorie: non riassegnabili (evita confusione)
+    const presi = new Set(Store.categorie().filter(x => x.id !== cat.id).map(x => x.colore));
+    let selCol = cat.colore || PALETTE.find(c => !presi.has(c)) || PALETTE[0];
+
+    const nome = el('input',{value:cat.nome, placeholder:'Es. Famiglia'});
     const swWrap = el('div',{class:'swatches'});
-    let selCol = cat.colore;
-    PALETTE.forEach(col => { const s=el('button',{class:'swatch'+(col===selCol?' sel':''), style:`background:${col}`}); s.onclick=()=>{selCol=col; $$('.swatch',swWrap).forEach(x=>x.classList.remove('sel')); s.classList.add('sel');}; swWrap.append(s); });
-    let rec = cat.recupero;
-    const recChip = el('button',{class:'chip'+(rec?' active':'')}, 'Recupero (scarica lo score)');
-    recChip.onclick = ()=>{ rec=!rec; recChip.classList.toggle('active', rec); };
+    PALETTE.forEach(col => {
+      const taken = presi.has(col);
+      const s = el('button',{class:'swatch'+(col===selCol?' sel':'')+(taken?' taken':''), style:`background:${col}`});
+      if (taken) s.disabled = true;
+      else s.onclick = ()=>{ selCol=col; $$('.swatch',swWrap).forEach(x=>x.classList.remove('sel')); s.classList.add('sel'); };
+      swWrap.append(s);
+    });
+
+    let intens = cat.intensitaDefault || 'media';
+    const intChips = el('div',{class:'chips'});
+    [['bassa','Bassa'],['media','Media'],['alta','Alta']].forEach(([v,l]) => {
+      const b = el('button',{class:'chip'+(v===intens?' active':'')}, l);
+      b.onclick = ()=>{ intens=v; $$('.chip',intChips).forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
+      intChips.append(b);
+    });
 
     openSheet(isNew?'Nuova categoria':'Modifica categoria', [
       el('div',{class:'field'}, el('label',{},'Nome'), nome),
       el('div',{class:'field'}, el('label',{},'Colore'), swWrap),
-      el('div',{class:'field'}, el('label',{},'Comportamento'), recChip),
+      el('div',{class:'field'}, el('label',{},'Intensità predefinita'), intChips,
+        el('div',{class:'hint', style:'margin-top:8px'},'Pre-compila l\'intensità quando crei un evento in questa categoria. Sarà la base del calcolo Energy Score in Fase 2.')),
     ], {
       onSave: () => {
         if (!nome.value.trim()) { toast('Dai un nome alla categoria'); return false; }
-        Store.upsertCategoria({ id:cat.id, nome:nome.value.trim(), colore:selCol, recupero:rec });
+        Store.upsertCategoria({ id:cat.id, nome:nome.value.trim(), colore:selCol, intensitaDefault:intens });
         render(); return true;
       },
       onDelete: isNew ? null : () => { Store.deleteCategoria(cat.id); render(); },
@@ -558,18 +564,20 @@
 
     const titolo = el('input',{value: occ?occ.titolo:'', placeholder:'Es. Call cliente X'});
     const catSel = el('select',{});
-    Store.categorie().forEach(c => catSel.append(el('option',{value:c.id, ...( (occ?occ.categoria:'lavoro')===c.id?{selected:''}:{}) }, c.nome)));
+    const initialCat = occ ? occ.categoria : (Store.categorie()[0]?.id || 'lavoro');
+    Store.categorie().forEach(c => catSel.append(el('option',{value:c.id, ...(initialCat===c.id?{selected:''}:{}) }, c.nome)));
     const dataIn = el('input',{type:'date', value: dateVal(start)});
     const oraIn  = el('input',{type:'time', value: timeVal(start)});
     const oraFn  = el('input',{type:'time', value: timeVal(end)});
 
-    let intens = occ?occ.intensita:'media';
+    let intens = occ ? occ.intensita : (Store.categoria(initialCat).intensitaDefault || 'media');
     const intChips = el('div',{class:'chips'});
+    const setIntens = (v) => { intens=v; $$('.chip',intChips).forEach(x=>x.classList.toggle('active', x.dataset.v===v)); };
     [['bassa','Bassa'],['media','Media'],['alta','Alta']].forEach(([v,l]) => {
-      const b = el('button',{class:'chip'+(v===intens?' active':'')}, l);
-      b.onclick = ()=>{ intens=v; $$('.chip',intChips).forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
-      intChips.append(b);
+      intChips.append(el('button',{class:'chip'+(v===intens?' active':''), 'data-v':v, onclick:()=>setIntens(v)}, l));
     });
+    // cambiando categoria, pre-compila l'intensità predefinita (resta modificabile)
+    catSel.addEventListener('change', () => setIntens(Store.categoria(catSel.value).intensitaDefault || 'media'));
 
     const fields = [
       el('div',{class:'field'}, el('label',{},'Titolo'), titolo),
@@ -598,8 +606,8 @@
         const [y,m,d] = dataIn.value.split('-').map(Number);
         const [h1,mi1] = oraIn.value.split(':').map(Number);
         const [h2,mi2] = oraFn.value.split(':').map(Number);
-        const inizio = new Date(y,m-1,d,h1,mi1), fine = new Date(y,m-1,d,h2,mi2);
-        if (fine <= inizio) { toast('La fine deve essere dopo l\'inizio'); return false; }
+        let inizio = new Date(y,m-1,d,h1,mi1), fine = new Date(y,m-1,d,h2,mi2);
+        if (fine <= inizio) fine = new Date(fine.getTime() + 24*3600*1000); // a cavallo della mezzanotte → finisce il giorno dopo
         const patch = { titolo:titolo.value.trim(), categoria:catSel.value, intensita:intens,
                         inizio:isoLocal(inizio), fine:isoLocal(fine) };
         if (isNew) Store.addEvento({ ...patch, ricorrente });
@@ -686,7 +694,7 @@
       el('p',{},'Elimina eventi, task, reminder e impostazioni da questo telefono. Non è reversibile.'),
       el('div',{class:'row2'},
         el('button',{class:'btn ghost', onclick:()=>scrim.remove()},'Annulla'),
-        el('button',{class:'btn danger', onclick:()=>{Store.resetAll(); scrim.remove(); applyTheme(); applyFont(); render(); toast('Dati azzerati');}},'Azzera'),
+        el('button',{class:'btn danger', onclick:()=>{Store.resetAll(); scrim.remove(); applyTheme(); render(); toast('Dati azzerati');}},'Azzera'),
       )));
     document.body.append(scrim);
   }

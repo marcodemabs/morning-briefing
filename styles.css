@@ -323,7 +323,7 @@ input, select, textarea { font-family: inherit; font-size: 1rem; color: var(--te
 }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
 .row2 { display: flex; gap: 10px; }
-.row2 > * { flex: 1; }
+.row2 > * { flex: 1 1 0; min-width: 0; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip {
@@ -338,6 +338,8 @@ input, select, textarea { font-family: inherit; font-size: 1rem; color: var(--te
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatch { width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent; }
 .swatch.sel { border-color: var(--text); }
+.swatch.taken { opacity: .22; cursor: not-allowed; position: relative; }
+.swatch.taken::after { content: ""; position: absolute; inset: 0; border-radius: 6px; background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,.35) 4px, rgba(255,255,255,.35) 5px); }
 
 /* ---------- MODAL / SHEET ---------- */
 .sheet-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 60; animation: fade .2s ease; display: flex; align-items: flex-end; }

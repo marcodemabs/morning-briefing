@@ -10,12 +10,12 @@ const Store = (() => {
 
   // ---- Categorie di default (6) — colore + flag recupero ----
   const DEFAULT_CATEGORIES = [
-    { id: 'lavoro',  nome: 'Lavoro',                colore: '#4ea1ff', recupero: false },
-    { id: 'viaggi',  nome: 'Viaggi & Prenotazioni', colore: '#c792ea', recupero: false },
-    { id: 'salute',  nome: 'Salute',                colore: '#26c6da', recupero: false, neutra: true },
-    { id: 'sport',   nome: 'Sport',                 colore: '#4ec97a', recupero: true },
-    { id: 'libero',  nome: 'Tempo libero',          colore: '#ffb454', recupero: true },
-    { id: 'studio',  nome: 'Studio & Progetti',     colore: '#f78c6c', recupero: false },
+    { id: 'lavoro',  nome: 'Lavoro',                colore: '#4ea1ff', intensitaDefault: 'media', recupero: false },
+    { id: 'viaggi',  nome: 'Viaggi & Prenotazioni', colore: '#c792ea', intensitaDefault: 'media', recupero: false },
+    { id: 'salute',  nome: 'Salute',                colore: '#26c6da', intensitaDefault: 'bassa', recupero: false, neutra: true },
+    { id: 'sport',   nome: 'Sport',                 colore: '#4ec97a', intensitaDefault: 'alta',  recupero: true },
+    { id: 'libero',  nome: 'Tempo libero',          colore: '#ffb454', intensitaDefault: 'bassa', recupero: true },
+    { id: 'studio',  nome: 'Studio & Progetti',     colore: '#f78c6c', intensitaDefault: 'media', recupero: false },
   ];
 
   const DEFAULT_DATA = {
@@ -160,13 +160,14 @@ const Store = (() => {
           const ov = (typeof ex === 'object') ? ex : {};
           const oi = ov.oraInizio || s.oraInizio;
           const of = ov.oraFine || s.oraFine;
+          const fineKey = (of <= oi) ? dayKey(addDays(parseKey(k), 1)) : k; // a cavallo di mezzanotte
           out.push({
             id: `${s.id}@${k}`, serieId: s.id, giorno: k,
             titolo: ov.titolo || s.titolo,
             categoria: ov.categoria || s.categoria,
             intensita: ov.intensita || s.intensita,
             anticipoAvviso: ov.anticipoAvviso ?? s.anticipoAvviso,
-            inizio: `${k}T${oi}:00`, fine: `${k}T${of}:00`,
+            inizio: `${k}T${oi}:00`, fine: `${fineKey}T${of}:00`,
             origine: 'manuale', ricorrente: true,
           });
         }
