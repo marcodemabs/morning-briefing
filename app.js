@@ -35,6 +35,10 @@
     calMode: 'mese',       // giorno | settimana | mese | anno
     cursor: new Date(),    // data di riferimento del calendario
     selected: new Date(),  // giorno selezionato
+    enMode: 'giorno',      // Energy: giorno | settimana | mese
+    enHead: 'media',       // Energy periodo: media | picco
+    enCat: null,           // Energy giorno: id categoria filtrata
+    enBar: null,           // Energy periodo: indice barra selezionata
   };
 
   // ============================================================
@@ -42,8 +46,12 @@
   // ============================================================
   function boot() {
     applyTheme();
-    // splash → app
-    setTimeout(() => { $('#splash').classList.add('hidden'); $('#app').classList.remove('hidden'); }, 1300);
+    // splash → app → (eventuale check-in mattutino)
+    setTimeout(() => {
+      $('#splash').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      if (!Store.checkinFattoOggi()) openCheckin();
+    }, 1300);
     wireChrome();
     render();
     registerSW();
@@ -115,6 +123,25 @@
       el('div',{class:'grow'}),
     ));
 
+    // allerta anticipata (§8): oggi o entro 7 giorni sopra soglia
+    const soglia = Store.prefs().sogliaAllerta ?? 80;
+    const alerts = Energy.allerta(soglia, Store.checkinDiOggi());
+    if (alerts.length) {
+      const primo = alerts[0];
+      let msg;
+      if (primo.offset === 0) msg = `Oggi proietti ${primo.score}. Giornata pesante — tieni un margine e non aggiungere altro.`;
+      else {
+        const g = new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long'}).format(Store.parseKey(primo.giorno));
+        msg = `${g} proietti ${primo.score}. Alleggerisci o preparati per tempo.`;
+      }
+      if (alerts.length > 1) msg += ` (+${alerts.length-1} altr${alerts.length-1===1?'o giorno':'i giorni'} sopra ${soglia})`;
+      root.append(el('div',{class:'alert-banner', onclick:()=>go('energy')},
+        el('div',{class:'alert-ico'}, '⚠'),
+        el('div',{style:'flex:1'}, el('div',{class:'alert-title'}, 'Allerta carico'), el('div',{class:'alert-msg'}, msg)),
+        el('div',{class:'alert-go'}, '›'),
+      ));
+    }
+
     // prossimo passo
     const ns = prossimoPasso(eventi, task);
     root.append(el('div',{class:'card'},
@@ -123,6 +150,9 @@
         ? el('div',{class:'next-step'}, el('div',{class:'ns-what'}, ns.what), el('div',{class:'ns-when'}, ns.when))
         : el('div',{class:'next-step empty'}, el('div',{class:'ns-what'}, 'Niente in programma. Goditi la giornata.'))
     ));
+
+    // energy score vivo (Fase 2, step 1) — subito sotto il prossimo passo
+    root.append(energyCardOggi());
 
     // counters
     root.append(el('div',{class:'counters', style:'margin-bottom:12px'},
@@ -157,12 +187,38 @@
     root.append(el('div',{class:'list-head'}, el('h2',{},'Agenda di oggi'), el('span',{class:'hint'}, eventi.length? '' : '')));
     if (!eventi.length) root.append(el('div',{class:'empty'}, el('div',{class:'em-title'},'Giornata libera'), el('div',{class:'em-sub'},'Aggiungi un evento dal Calendario.')));
     else eventi.forEach(e => root.append(agendaItem(e)));
+  }
 
-    // energy score è in Fase 2 — piccolo rimando
-    root.append(el('div',{class:'card', style:'margin-top:14px;text-align:center'},
-      el('div',{class:'section-label'},'Energy Score'),
-      el('div',{class:'hint'},'Arriva in Fase 2 — per ora l\'app è il tuo planner a mano.')
-    ));
+  // Card Energy Score del giorno (vivo: usa il carico residuo).
+  // Presentazione a 3 livelli (ALTO/MEDIO/BASSO), palette dedicata distinta dalle categorie.
+  function energyCardOggi() {
+    const ci = Store.checkinDiOggi();
+    const r = Energy.scoreGiorno(new Date(), { residuo: true, checkin: ci });
+    const tk = enTier(r.score);
+    const neutro = !ci || !Array.isArray(ci.r);
+    const card = el('div',{class:'card energy-card'},
+      el('div',{class:'energy-head'},
+        el('div',{class:'section-label eyebrow'},'Energy Score'),
+        el('button',{class:'ci-redo', onclick:openCheckin}, neutro ? 'Fai il check-in ›' : '↻ check-in'),
+      ),
+      el('div',{class:'energy-row'},
+        el('div',{class:'energy-num mono', style:`color:${tk.col}`}, String(r.score)),
+        el('div',{class:'energy-meta'},
+          el('div',{class:'energy-label', style:`color:${tk.col}`}, tk.txt),
+        ),
+      ),
+      el('div',{class:'energy-track'}, el('div',{class:'energy-fill', style:`width:${r.score}%;background:${tk.col}`})),
+      el('div',{class:'energy-advice'}, Energy.consiglio(r)),
+    );
+    if (neutro) card.append(el('div',{class:'energy-note'}, ci ? 'Check-in saltato: fattori neutri.' : 'Nessun check-in oggi: fattori neutri.'));
+    return card;
+  }
+
+  // Livello a 3 fasce per la UI (palette "strumento", distinta dalle categorie)
+  function enTier(s){
+    if (s >= 70) return { txt:'ALTO',  col:'var(--s-alto)'  };
+    if (s >= 35) return { txt:'MEDIO', col:'var(--s-medio)' };
+    return          { txt:'BASSO', col:'var(--s-basso)' };
   }
 
   function prossimoPasso(eventi, task) {
@@ -419,14 +475,131 @@
   }
 
   // ============================================================
-  //  VIEW · ENERGY (stub Fase 2)
+  //  VIEW · ENERGY SCORE (Fase 2)
   // ============================================================
+  const TASK_COL = '#8a94a6';   // grigio-ardesia: le task, distinto dai toni categoria
+
   function viewEnergy(root) {
-    root.append(el('div',{class:'stub'},
-      el('div',{class:'stub-badge'},'Fase 2'),
-      el('h2',{},'Energy Score in arrivo'),
-      el('p',{},'Il cuore dell\'app — check-in mattutino, ciambella 0–100 e consiglio dell\'assistente — si accende nella Fase 2. Le formule sono già definite nella specifica Energy Score.'),
-    ));
+    const seg = el('div',{class:'segmented', style:'margin-bottom:14px'});
+    ['giorno','settimana','mese'].forEach(m => seg.append(
+      el('button',{class: state.enMode===m?'active':'', onclick:()=>{ state.enMode=m; state.enCat=null; state.enBar=null; render(); }},
+        m[0].toUpperCase()+m.slice(1))));
+    root.append(seg);
+    if (state.enMode === 'giorno') enGiorno(root);
+    else enPeriodo(root, state.enMode);
+  }
+
+  // anello SVG: arco score + tacca 80 + numero/livello al centro
+  function enRing(score) {
+    const tk = enTier(score), R = 92, C = 2*Math.PI*R, off = C*(1 - score/100);
+    const a = (-90 + 80/100*360) * Math.PI/180, cx=105, cy=105, r1=R-11, r2=R+11;
+    const x1=(cx+r1*Math.cos(a)).toFixed(1), y1=(cy+r1*Math.sin(a)).toFixed(1);
+    const x2=(cx+r2*Math.cos(a)).toFixed(1), y2=(cy+r2*Math.sin(a)).toFixed(1);
+    return el('div',{class:'en-ringwrap'}, el('div',{class:'en-ring', html:
+      `<svg class="en-arc" width="210" height="210" viewBox="0 0 210 210">
+         <circle cx="105" cy="105" r="${R}" fill="none" stroke="var(--bg-panel)" stroke-width="14"/>
+         <circle cx="105" cy="105" r="${R}" fill="none" stroke="${tk.col}" stroke-width="14" stroke-linecap="round"
+           stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
+       <svg width="210" height="210" viewBox="0 0 210 210" style="position:absolute;inset:0">
+         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--text)" stroke-width="2" opacity=".7"/></svg>
+       <div class="en-center"><div class="en-num mono" style="color:${tk.col}">${score}</div>
+         <div class="en-tier" style="color:${tk.col}">${tk.txt}</div></div>`}));
+  }
+
+  // --- GIORNO: anello (filtrabile per categoria) + barre "cosa pesa oggi" ---
+  function enGiorno(root) {
+    const key = Store.dayKey(new Date());
+    const ci = Store.checkinDiOggi();
+    const full = Energy.scoreGiorno(new Date(), { residuo: true, checkin: ci });
+    const cats = Energy.caricoCategorie(key, { residuo: true });
+    const caricoTk = Energy.caricoTask(key);
+    const rows = cats.map(c => ({ id:c.id, nome:c.nome, colore:c.colore, ore:c.ore, carico:c.carico }));
+    if (caricoTk > 0) rows.push({ id:'__task', nome:'Task', colore:TASK_COL, ore:null, carico:caricoTk });
+    const tot = rows.reduce((a,r)=>a+r.carico, 0);
+
+    if (state.enCat != null && !rows.some(r=>r.id===state.enCat)) state.enCat = null;
+    let shown = full.score;
+    if (state.enCat != null) shown = Energy.scoreDaCarico(rows.find(r=>r.id===state.enCat).carico, { checkin: ci }).score;
+
+    const ringCard = el('div',{class:'card'}, enRing(shown));
+    if (state.enCat != null) ringCard.append(el('div',{class:'en-filt'},
+      el('button',{class:'en-reset', onclick:()=>{ state.enCat=null; render(); }}, 'Tutte')));
+    root.append(ringCard);
+
+    const barsCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'}, 'Cosa pesa oggi · tocca per filtrare'));
+    if (!rows.length) barsCard.append(el('div',{class:'hint'}, 'Niente in agenda che pesi oggi.'));
+    rows.forEach(r => {
+      const sel = state.enCat === r.id;
+      barsCard.append(el('div',{class:'en-catrow'+(sel?' sel':''), onclick:()=>{ state.enCat = sel?null:r.id; render(); }},
+        el('div',{class:'en-swatch', style:`background:${r.colore}`}),
+        el('div',{class:'en-catname'}, r.nome),
+        el('div',{class:'en-cattrack'}, el('div',{class:'en-catfill', style:`width:${tot? r.carico/tot*100:0}%;background:${r.colore}`})),
+        el('div',{class:'en-catval mono'}, r.ore!=null ? fmt1(r.ore)+' h' : fmt1(r.carico)),
+      ));
+    });
+    const oreRec = Energy.oreRecupero(key, true, new Date());
+    if (oreRec > 0) barsCard.append(el('div',{class:'en-recnote'}, `↓ recupero · ${fmt1(oreRec)} h · −${Math.min(15, Math.round(oreRec*5))}`));
+    root.append(barsCard);
+
+    root.append(el('div',{class:'card'}, el('div',{class:'energy-advice'}, Energy.consiglio(full))));
+  }
+
+  // --- SETTIMANA / MESE: anello media|picco + istogramma giornaliero con tap ---
+  function enPeriodo(root, mode) {
+    const giorni = mode==='settimana' ? enSettimana() : enMese();
+    const P = giorni.map(d => ({ date:d, score: Energy.scoreGiorno(d, { residuo:false, checkin: Store.checkinDi(Store.dayKey(d)) }).score }));
+    const vals = P.map(x=>x.score);
+    const media = Math.round(vals.reduce((a,b)=>a+b,0) / (vals.length||1));
+    const picco = vals.length ? Math.max(...vals) : 0;
+    const head = state.enHead==='media' ? media : picco;
+
+    const ringCard = el('div',{class:'card'}, enRing(head));
+    const mp = el('div',{class:'en-mp'});
+    [['media','Media'],['picco','Picco']].forEach(([k,lab]) => mp.append(
+      el('button',{class: state.enHead===k?'on':'', onclick:()=>{ state.enHead=k; render(); }}, lab)));
+    ringCard.append(mp);
+    root.append(ringCard);
+
+    const barsCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'}, mode==='settimana'?'Andamento settimana':'Andamento mese'));
+    if (state.enBar != null && state.enBar >= P.length) state.enBar = null;
+
+    const wrap = el('div',{class:'en-bars-wrap'});
+    wrap.append(el('div',{class:'en-line80', style:`top:${(1-80/100)*120}px`}, el('span',{},'80')));
+    const bars = el('div',{class:'en-bars'});
+    P.forEach((x,i) => {
+      const dim = state.enBar!=null && state.enBar!==i;
+      const lab = mode==='settimana' ? DOW[x.date.getDay()] : String(x.date.getDate());
+      bars.append(el('div',{class:'en-bar'+(dim?' dim':''), onclick:()=>{ state.enBar = state.enBar===i?null:i; render(); }},
+        el('div',{class:'en-col', style:`height:${x.score}%;background:${enTier(x.score).col}`}),
+        el('div',{class:'en-d'}, lab),
+      ));
+    });
+    wrap.append(bars);
+    barsCard.append(wrap);
+
+    if (state.enBar != null && P[state.enBar]) {
+      const b = P[state.enBar], tk = enTier(b.score);
+      const dstr = new Intl.DateTimeFormat('it-IT').format(b.date);
+      barsCard.append(el('div',{class:'en-stat'},
+        el('div',{class:'en-strow'}, el('span',{},'Data'),    el('b',{class:'mono'}, dstr)),
+        el('div',{class:'en-strow'}, el('span',{},'Score'),   el('b',{class:'mono', style:`color:${tk.col}`}, String(b.score))),
+        el('div',{class:'en-strow'}, el('span',{},'Livello'), el('b',{style:`color:${tk.col}`}, tk.txt)),
+      ));
+    } else {
+      barsCard.append(el('div',{class:'en-stat-hint'}, 'Tocca una barra per i dettagli'));
+    }
+    root.append(barsCard);
+  }
+
+  function enSettimana() {
+    const t = new Date(); const dow = (t.getDay()+6)%7;         // lun = 0
+    const mon = Store.addDays(t, -dow); mon.setHours(0,0,0,0);
+    return [...Array(7)].map((_,i)=>Store.addDays(mon,i));
+  }
+  function enMese() {
+    const t = new Date(), y=t.getFullYear(), m=t.getMonth();
+    const n = new Date(y, m+1, 0).getDate();
+    return [...Array(n)].map((_,i)=>new Date(y,m,i+1));
   }
 
   // ============================================================
@@ -434,19 +607,33 @@
   // ============================================================
   function viewRevisione(root) {
     const today = new Date();
+    const key = Store.dayKey(today);
     const eventiPassati = Store.eventiDelGiorno(today).filter(e => new Date(e.fine) <= new Date());
     const aperte = Store.taskAperte();
     root.append(el('div',{class:'toolbar'}, el('div',{class:'period-label'}, 'Chiusura di ' + new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long'}).format(today))));
-    root.append(el('div',{class:'counters', style:'margin-bottom:14px'},
+
+    // Energy Score del giorno intero (con il check-in di oggi)
+    const r = Energy.scoreGiorno(today, { residuo:false, checkin: Store.checkinDiOggi() });
+    const tk = enTier(r.score);
+    const oreRec = Energy.oreRecupero(key, false, new Date());
+    const scoreCard = el('div',{class:'card'},
+      el('div',{class:'section-label eyebrow'},'Energy Score di oggi'),
+      el('div',{class:'rev-score'},
+        el('div',{class:'rev-num mono', style:`color:${tk.col}`}, String(r.score)),
+        el('div',{class:'rev-tier', style:`color:${tk.col}`}, tk.txt),
+      ),
+      el('div',{class:'rev-row'}, el('span',{},'Carico del giorno'), el('b',{class:'mono'}, fmt1(r.carico))),
+      el('div',{class:'rev-row'}, el('span',{},'Recupero'), el('b',{class:'mono'}, oreRec>0 ? `${fmt1(oreRec)} h · −${Math.min(15,Math.round(oreRec*5))}` : '—')),
+    );
+    root.append(scoreCard);
+
+    root.append(el('div',{class:'counters', style:'margin:4px 0 14px'},
       counter(eventiPassati.length,'Eventi conclusi'),
       counter(aperte.length,'Task ancora aperte'),
     ));
     root.append(el('div',{class:'list-head'}, el('h2',{},'Task non completate')));
     if (!aperte.length) root.append(el('div',{class:'empty'}, el('div',{class:'em-title'},'Tutto chiuso 👏'), el('div',{class:'em-sub'},'Niente in sospeso per oggi.')));
     else { const card=el('div',{class:'card'}); aperte.forEach(t => card.append(taskItem(t, Store.giorniRitardo(t)))); root.append(card); }
-    root.append(el('div',{class:'card', style:'text-align:center;margin-top:12px'},
-      el('div',{class:'section-label'},'Statistiche complete'),
-      el('div',{class:'hint'},'Le statistiche di giornata con Energy Score arrivano in Fase 2.')));
   }
 
   // ============================================================
@@ -466,23 +653,27 @@
 
     // Categorie
     const intLabel = { bassa:'bassa', media:'media', alta:'alta' };
+    const catMeta = c => c.neutra ? 'neutra · non incide'
+      : c.recupero ? 'recupero · self-care'
+      : 'carico · intensità ' + (intLabel[c.intensitaDefault] || 'media');
     const catCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Categorie'));
     Store.categorie().forEach(c => {
       catCard.append(el('div',{class:'cat-pick', onclick:()=>openCategoriaEditor(c)},
         el('div',{class:'cat-swatch', style:`background:${c.colore}`}),
         el('div',{style:'flex:1'}, el('div',{style:'font-size:.92rem;font-weight:500'}, c.nome),
-          el('div',{class:'hint'}, 'intensità · ' + (intLabel[c.intensitaDefault] || 'media'))),
+          el('div',{class:'hint'}, catMeta(c))),
         el('div',{class:'hint'},'modifica ›'),
       ));
     });
     catCard.append(el('button',{class:'btn ghost sm', style:'margin-top:8px', onclick:()=>openCategoriaEditor(null)},'+ Nuova categoria'));
     root.append(catCard);
 
-    // Parametri (Fase 2 preview)
-    const parCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Parametri Energy Score (Fase 2)'));
+    // Parametri Energy Score
+    const parCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Parametri Energy Score'));
     parCard.append(numRow('Ore di capacità', p.oreCapacita, 'h', v=>Store.setPref('oreCapacita',v), 3, 12, 0.5));
     parCard.append(numRow('Target sonno', p.targetSonno, 'h', v=>Store.setPref('targetSonno',v), 5, 10, 0.5));
     parCard.append(numRow('Soglia allerta', p.sogliaAllerta, '', v=>Store.setPref('sogliaAllerta',v), 60, 95, 5));
+    parCard.append(el('div',{class:'hint', style:'margin-top:8px'},'La soglia allerta accende l\'avviso anticipato nel Riassunto.'));
     root.append(parCard);
 
     // Connessioni (Fase 3)
@@ -498,7 +689,7 @@
     dataCard.append(el('button',{class:'btn danger sm', onclick:confirmReset},'Azzera tutto'));
     root.append(dataCard);
 
-    root.append(el('div',{class:'hint', style:'text-align:center;margin-top:8px'},'Morning Briefing · v1 (Fase 1)'));
+    root.append(el('div',{class:'hint', style:'text-align:center;margin-top:8px'},'Morning Briefing · v1'));
   }
 
   function numRow(label, val, unit, onChange, min, max, step) {
@@ -538,15 +729,35 @@
       intChips.append(b);
     });
 
+    // Ruolo verso l'Energy Score: carico | recupero | neutra
+    let ruolo = cat.neutra ? 'neutra' : (cat.recupero ? 'recupero' : 'carico');
+    const RUOLO_TXT = {
+      carico:   'Pesa sull\'Energy Score (carico normale).',
+      recupero: 'Self-care: scarica lo score. −5 punti per ogni ora, fino a −15 al giorno.',
+      neutra:   'Non incide sull\'Energy Score, né carico né recupero.',
+    };
+    const ruoloHint = el('div',{class:'hint', style:'margin-top:8px'});
+    const intField = el('div',{class:'field'}, el('label',{},'Intensità predefinita'), intChips,
+      el('div',{class:'hint', style:'margin-top:8px'},'Pre-compila l\'intensità quando crei un evento in questa categoria. È la base del carico nell\'Energy Score.'));
+    const syncRuolo = () => { ruoloHint.textContent = RUOLO_TXT[ruolo]; intField.style.display = ruolo==='carico' ? '' : 'none'; };
+    const ruoloChips = el('div',{class:'chips'});
+    [['carico','Carico'],['recupero','Recupero'],['neutra','Neutra']].forEach(([v,l]) => {
+      const b = el('button',{class:'chip'+(v===ruolo?' active':'')}, l);
+      b.onclick = ()=>{ ruolo=v; $$('.chip',ruoloChips).forEach(x=>x.classList.remove('active')); b.classList.add('active'); syncRuolo(); };
+      ruoloChips.append(b);
+    });
+    syncRuolo();
+
     openSheet(isNew?'Nuova categoria':'Modifica categoria', [
       el('div',{class:'field'}, el('label',{},'Nome'), nome),
       el('div',{class:'field'}, el('label',{},'Colore'), swWrap),
-      el('div',{class:'field'}, el('label',{},'Intensità predefinita'), intChips,
-        el('div',{class:'hint', style:'margin-top:8px'},'Pre-compila l\'intensità quando crei un evento in questa categoria. Sarà la base del calcolo Energy Score in Fase 2.')),
+      el('div',{class:'field'}, el('label',{},'Ruolo verso l\'Energy Score'), ruoloChips, ruoloHint),
+      intField,
     ], {
       onSave: () => {
         if (!nome.value.trim()) { toast('Dai un nome alla categoria'); return false; }
-        Store.upsertCategoria({ id:cat.id, nome:nome.value.trim(), colore:selCol, intensitaDefault:intens });
+        Store.upsertCategoria({ id:cat.id, nome:nome.value.trim(), colore:selCol, intensitaDefault:intens,
+          recupero: ruolo==='recupero', neutra: ruolo==='neutra' });
         render(); return true;
       },
       onDelete: isNew ? null : () => { Store.deleteCategoria(cat.id); render(); },
@@ -663,6 +874,79 @@
   }
 
   // ============================================================
+  //  CHECK-IN MATTUTINO (Fase 2) — 6 domande, 1 tap l'una, skippabile
+  //  I 5 quesiti valgono -1/0/+1 (sinistra→destra). Il 6° sono le ore.
+  // ============================================================
+  const CHECKIN_Q = [
+    { q: 'Come hai dormito?',                       opt: ['Male','Così così','Bene'] },
+    { q: 'Come ti senti fisicamente?',              opt: ['Scarico','Nella media','In forma'] },
+    { q: 'Che umore hai?',                          opt: ['Giù','Neutro','Su'] },
+    { q: 'Quanto sei sotto tensione?',              opt: ['Molto','Un po\'','Tranquillo'] }, // invertita: Tranquillo = +1
+    { q: 'Quanto ti senti motivato e concentrato?', opt: ['Poco','Abbastanza','Molto'] },
+  ];
+
+  function openCheckin() {
+    const answers = new Array(CHECKIN_Q.length).fill(null);
+    const last = Store.checkinDiOggi();
+    let ore = (last && typeof last.ore === 'number') ? last.ore : (Store.prefs().targetSonno ?? 7.5);
+    const total = CHECKIN_Q.length + 1; // 5 domande + sonno
+
+    const panel = el('div',{class:'checkin'});
+    const scrim = el('div',{class:'checkin-scrim'}, panel);
+    document.body.append(scrim);
+
+    const finish = (payload) => { Store.salvaCheckin({ ...payload, ts: Date.now() }); scrim.remove(); render(); toast('Check-in salvato'); };
+    const skip   = () => { Store.salvaCheckin({ skip: true, ts: Date.now() }); scrim.remove(); render(); };
+
+    function chrome(i) {
+      const dots = el('div',{class:'ci-dots'});
+      for (let k=0;k<total;k++) dots.append(el('span',{class:'ci-dot'+(k<=i?' on':'')}));
+      return [
+        el('div',{class:'ci-head'},
+          el('div',{},
+            el('div',{class:'ci-hello'},'Buongiorno'),
+            el('div',{class:'ci-date'}, new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long'}).format(new Date())),
+          ),
+          el('button',{class:'ci-skip', onclick:skip},'Salta'),
+        ),
+        dots,
+      ];
+    }
+
+    function step(i) {
+      panel.innerHTML = '';
+      chrome(i).forEach(n => panel.append(n));
+
+      if (i < CHECKIN_Q.length) {
+        const item = CHECKIN_Q[i];
+        panel.append(el('div',{class:'ci-q'}, item.q));
+        const opts = el('div',{class:'ci-opts'});
+        item.opt.forEach((label, idx) => {
+          const val = idx - 1; // 0→-1, 1→0, 2→+1
+          opts.append(el('button',{class:'ci-opt'+(answers[i]===val?' sel':''),
+            onclick:()=>{ answers[i]=val; step(i+1); }}, label));
+        });
+        panel.append(opts);
+      } else {
+        // 6ª: ore di sonno (stepper 30 min)
+        panel.append(el('div',{class:'ci-q'},'Quante ore hai dormito?'));
+        const disp = el('div',{class:'ci-sleep mono'}, fmtOreMin(ore));
+        const set = (nv) => { ore = Math.min(12, Math.max(3, Math.round(nv*2)/2)); disp.textContent = fmtOreMin(ore); };
+        panel.append(el('div',{class:'ci-sleep-row'},
+          el('button',{class:'ci-step', onclick:()=>set(ore-0.5)},'−'), disp,
+          el('button',{class:'ci-step', onclick:()=>set(ore+0.5)},'+'),
+        ));
+        panel.append(el('button',{class:'ci-done', onclick:()=>finish({ r: answers.map(v=>v??0), ore })},'Fatto'));
+      }
+
+      if (i > 0) panel.append(el('button',{class:'ci-back', onclick:()=>step(i-1)},'‹ Indietro'));
+    }
+    step(0);
+  }
+
+  function fmtOreMin(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return `${H}h${String(M).padStart(2,'0')}`; }
+
+  // ============================================================
   //  SHEET / TOAST
   // ============================================================
   let sheetScrim = null;
@@ -706,6 +990,7 @@
 
   // ---------- format helpers ----------
   function fmtOre(h){ if(!h) return '0h'; return (Math.round(h*10)/10).toString().replace('.',',')+'h'; }
+  function fmt1(n){ return (Math.round((n||0)*10)/10).toString().replace('.',','); }
   function roundedNow(day){ const d=new Date(day); const n=new Date(); d.setHours(n.getHours(), n.getMinutes()<30?0:30,0,0); return d; }
   function dateVal(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   function timeVal(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }

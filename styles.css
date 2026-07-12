@@ -388,3 +388,111 @@ input, select, textarea { font-family: inherit; font-size: 1rem; color: var(--te
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; transition-duration: .05s !important; }
 }
+
+/* ---------- ENERGY SCORE (Fase 2) ---------- */
+.energy-card { margin-bottom: 12px; }
+.energy-row { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
+.energy-num { font-size: 3rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.energy-meta { flex: 1; min-width: 0; }
+.energy-label { font-size: 1rem; font-weight: 600; }
+.energy-sub { font-size: .78rem; color: var(--text-muted); margin-top: 3px; }
+.energy-track { height: 6px; border-radius: 3px; background: var(--bg-panel); overflow: hidden; }
+.energy-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.energy-advice { font-size: .9rem; color: var(--text-muted); margin-top: 12px; line-height: 1.45; }
+
+/* ---------- CHECK-IN MATTUTINO (Fase 2) ---------- */
+.checkin-scrim { position: fixed; inset: 0; z-index: 60; background: var(--bg);
+  display: flex; align-items: stretch; justify-content: center;
+  animation: ciFade .25s ease; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+@keyframes ciFade { from { opacity: 0; } to { opacity: 1; } }
+.checkin { width: 100%; max-width: 460px; display: flex; flex-direction: column;
+  padding: 28px 22px calc(22px + env(safe-area-inset-bottom)); }
+.ci-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.ci-hello { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+.ci-date { font-size: .9rem; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
+.ci-skip { background: none; border: none; color: var(--text-subtle); font-size: .9rem; padding: 6px 4px; cursor: pointer; }
+.ci-dots { display: flex; gap: 6px; margin-bottom: 34px; }
+.ci-dot { width: 100%; height: 3px; border-radius: 2px; background: var(--border); transition: background .25s; }
+.ci-dot.on { background: var(--accent); }
+.ci-q { font-size: 1.32rem; font-weight: 600; line-height: 1.3; margin-bottom: 26px; }
+.ci-opts { display: flex; flex-direction: column; gap: 10px; }
+.ci-opt { text-align: left; padding: 18px 18px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-elevated); color: var(--text); font-size: 1.02rem; font-weight: 500; cursor: pointer;
+  transition: border-color .15s, background .15s, transform .05s; }
+.ci-opt:active { transform: scale(.99); }
+.ci-opt.sel { border-color: var(--accent); background: var(--accent-weak); }
+.ci-sleep-row { display: flex; align-items: center; justify-content: center; gap: 24px; margin: 10px 0 8px; }
+.ci-sleep { font-size: 2.6rem; font-weight: 600; min-width: 120px; text-align: center; font-variant-numeric: tabular-nums; }
+.ci-step { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--bg-elevated); color: var(--text); font-size: 1.6rem; cursor: pointer; }
+.ci-step:active { background: var(--bg-hover); }
+.ci-done { margin-top: 30px; padding: 16px; border-radius: 12px; border: none;
+  background: var(--accent); color: #fff; font-size: 1.02rem; font-weight: 600; cursor: pointer; }
+.ci-back { margin-top: 14px; align-self: center; background: none; border: none;
+  color: var(--text-subtle); font-size: .9rem; padding: 8px; cursor: pointer; }
+
+/* card Energy: header + nota stato check-in */
+.energy-head { display: flex; align-items: center; justify-content: space-between; }
+.ci-redo { background: none; border: none; color: var(--accent); font-size: .8rem; padding: 2px 4px; cursor: pointer; }
+.energy-note { font-size: .78rem; color: var(--text-subtle); margin-top: 10px; }
+
+/* ---------- VISTA ENERGY (Fase 2, step 3) ---------- */
+:root{ --s-basso:#57b894; --s-medio:#d99a2b; --s-alto:#d94f5c; }  /* palette score: distinta dalle categorie */
+
+.en-ringwrap{ display:flex; flex-direction:column; align-items:center; padding:6px 0 2px; }
+.en-ring{ position:relative; width:210px; height:210px; }
+.en-ring .en-arc{ transform:rotate(-90deg); }
+.en-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.en-num{ font-size:3.7rem; font-weight:600; line-height:1; font-variant-numeric:tabular-nums; }
+.en-tier{ font-size:.95rem; font-weight:700; letter-spacing:.12em; margin-top:8px; }
+
+.en-filt{ display:flex; justify-content:center; margin-top:14px; }
+.en-reset{ -webkit-appearance:none; appearance:none; border:1px solid var(--border); background:var(--bg-panel);
+  color:var(--text-muted); font:inherit; font-size:.82rem; padding:6px 18px; border-radius:8px; cursor:pointer; }
+
+.en-catrow{ display:flex; align-items:center; gap:10px; margin:6px 0; padding:7px 8px; border-radius:9px;
+  border:1px solid transparent; cursor:pointer; }
+.en-catrow.sel{ border-color:var(--border); background:var(--bg-panel); }
+.en-swatch{ width:11px; height:11px; border-radius:3px; flex:none; }
+.en-catname{ flex:1; font-size:.88rem; color:var(--text); }
+.en-cattrack{ flex:1.4; height:8px; background:var(--bg-panel); border-radius:4px; overflow:hidden; }
+.en-catrow.sel .en-cattrack{ background:var(--bg); }
+.en-catfill{ height:100%; border-radius:4px; }
+.en-catval{ width:56px; text-align:right; font-size:.78rem; color:var(--text-muted); flex:none; }
+.en-recnote{ font-size:.8rem; color:var(--text-subtle); margin-top:10px; }
+
+.en-mp{ display:flex; justify-content:center; margin-top:12px; }
+.en-mp button{ -webkit-appearance:none; appearance:none; border:1px solid var(--border); background:var(--bg-panel);
+  color:var(--text-muted); font:inherit; font-size:.82rem; padding:7px 18px; cursor:pointer; }
+.en-mp button:first-child{ border-radius:8px 0 0 8px; }
+.en-mp button:last-child{ border-radius:0 8px 8px 0; border-left:none; }
+.en-mp button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+.en-bars-wrap{ position:relative; margin-top:8px; }
+.en-bars{ display:flex; align-items:flex-end; gap:4px; height:120px; }
+.en-bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; cursor:pointer; }
+.en-col{ width:100%; border-radius:3px 3px 0 0; min-height:3px; transition:opacity .15s; }
+.en-bar.dim .en-col{ opacity:.32; }
+.en-d{ font-size:.58rem; color:var(--text-subtle); margin-top:5px; font-family:'JetBrains Mono',ui-monospace,monospace; }
+.en-line80{ position:absolute; left:0; right:0; border-top:1px dashed var(--text-subtle); opacity:.55; }
+.en-line80 span{ position:absolute; right:0; top:-8px; font-size:.6rem; color:var(--text-subtle); background:var(--bg-elevated); padding:0 3px; }
+
+.en-stat{ margin-top:16px; border-top:1px solid var(--border); padding-top:10px; }
+.en-strow{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:.88rem; color:var(--text-muted); }
+.en-strow b{ color:var(--text); font-weight:600; }
+.en-stat-hint{ margin-top:16px; border-top:1px solid var(--border); padding-top:14px; text-align:center; font-size:.8rem; color:var(--text-subtle); }
+
+/* ---------- ALLERTA + REVISIONE (Fase 2, step 5) ---------- */
+.alert-banner{ display:flex; align-items:center; gap:12px; padding:13px 14px; margin-bottom:12px; cursor:pointer;
+  background:rgba(217,79,92,.12); border:1px solid rgba(217,79,92,.42); border-radius:12px; }
+.alert-ico{ font-size:1.2rem; color:var(--s-alto); flex:none; }
+.alert-title{ font-size:.82rem; font-weight:700; color:var(--s-alto); letter-spacing:.03em; }
+.alert-msg{ font-size:.85rem; color:var(--text-muted); margin-top:2px; line-height:1.4; }
+.alert-go{ color:var(--text-subtle); font-size:1.3rem; flex:none; }
+
+.rev-score{ display:flex; align-items:baseline; gap:12px; margin:6px 0 12px; }
+.rev-num{ font-size:3rem; font-weight:600; line-height:1; font-variant-numeric:tabular-nums; }
+.rev-tier{ font-size:1rem; font-weight:700; letter-spacing:.1em; }
+.rev-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:.88rem;
+  color:var(--text-muted); border-top:1px solid var(--border-soft, var(--border)); }
+.rev-row b{ color:var(--text); font-weight:600; }

@@ -24,6 +24,7 @@ const Store = (() => {
     serie: [],        // template ricorrenti settimanali
     task: [],
     reminder: [],
+    checkin: {},      // { 'YYYY-MM-DD': { r:[q1..q5], ore, skip?, ts } } — Fase 2
     prefs: {
       tema: 'auto',                 // 'auto' | id tema
       fontScale: 1,
@@ -222,6 +223,14 @@ const Store = (() => {
   function reminderDelGiorno(k) { return reminderAttivi().filter(r => r.giorno === k); }
 
   // ============================================================
+  //  CHECK-IN MATTUTINO (Fase 2)
+  // ============================================================
+  function checkinDi(key) { return data.checkin[key] || null; }
+  function checkinDiOggi() { return checkinDi(dayKey(new Date())); }
+  function checkinFattoOggi() { return !!data.checkin[dayKey(new Date())]; }   // risposto O saltato
+  function salvaCheckin(obj) { data.checkin[dayKey(new Date())] = { ...obj }; save(); }
+
+  // ============================================================
   //  PREFS
   // ============================================================
   function prefs() { return data.prefs; }
@@ -244,6 +253,7 @@ const Store = (() => {
     addEvento, updateEvento, deleteEvento, deleteSerieIntera, eventiTra, eventiDelGiorno,
     addTask, updateTask, deleteTask, completaTask, taskAperte, giorniRitardo,
     addReminder, updateReminder, deleteReminder, reminderAttivi, reminderDelGiorno,
+    checkinDi, checkinDiOggi, checkinFattoOggi, salvaCheckin,
     prefs, setPref, exportJSON, resetAll,
     get raw(){ return data; },
   };
