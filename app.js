@@ -677,9 +677,10 @@
     root.append(parCard);
 
     // Connessioni (Fase 3)
+    // Connessioni (Fase 3)
     const connCard = el('div',{class:'card'}, el('div',{class:'section-label eyebrow'},'Connessioni'));
-    connCard.append(el('div',{class:'hint', style:'margin-bottom:10px'},'Gmail e calendario Outlook si collegano in Fase 3 (auto-import).'));
-    connCard.append(el('button',{class:'btn ghost sm', disabled:'', style:'opacity:.5'},'Disconnetti Gmail'));
+    connCard.append(el('div',{class:'hint', style:'margin-bottom:10px'},'Importa le call di lavoro dal PDF del calendario Outlook (Vista Verticale). Tutto in locale: il file non lascia il telefono.'));
+    connCard.append(el('button',{class:'btn ghost sm', onclick:()=>ImportCal.apri({onDone:render})},'Importa calendario Outlook'));
     root.append(connCard);
 
     // Dati
