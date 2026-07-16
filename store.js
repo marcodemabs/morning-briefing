@@ -1,7 +1,8 @@
 /* ============================================================
-   STORE · modello dati + persistenza locale (Fase 1)
-   Tre oggetti: Evento, Reminder, Task. Tutto in localStorage.
-   Nessun account, nessuna rete: coerente con la discovery.
+   STORE · modello dati + persistenza locale
+   Fase 1: Evento, Reminder, Task.  Fase 2: check-in.
+   Fase 3: import-once + tombstone (idEsterno, importCancellati).
+   Tutto in localStorage. Nessun account, nessuna rete.
    ============================================================ */
 
 const Store = (() => {
@@ -25,6 +26,7 @@ const Store = (() => {
     task: [],
     reminder: [],
     checkin: {},      // { 'YYYY-MM-DD': { r:[q1..q5], ore, skip?, ts } } — Fase 2
+    importCancellati: [],  // Fase 3: idEsterno di import eliminati (tombstone) — non tornano al reimport
     prefs: {
       tema: 'auto',                 // 'auto' | id tema
       fontScale: 1,
@@ -49,6 +51,7 @@ const Store = (() => {
         ...parsed,
         prefs: { ...DEFAULT_DATA.prefs, ...(parsed.prefs || {}) },
         categorie: parsed.categorie?.length ? parsed.categorie : DEFAULT_CATEGORIES,
+        importCancellati: parsed.importCancellati || [],
       };
     } catch (e) {
       console.warn('Store: dati illeggibili, riparto puliti.', e);
@@ -128,6 +131,8 @@ const Store = (() => {
       const s = data.serie.find(x => x.id === occ.serieId);
       if (s) s.eccezioni[occ.giorno] = 'cancellato';  // solo questa occorrenza
     } else {
+      const e = data.eventi.find(x => x.id === occ.id);
+      if (e && e.idEsterno) tombstone(e.idEsterno);    // Fase 3: import eliminato non torna
       data.eventi = data.eventi.filter(x => x.id !== occ.id);
     }
     save();
@@ -185,6 +190,47 @@ const Store = (() => {
   function eventiDelGiorno(d) { return eventiTra(d, d); }
 
   // ============================================================
+  //  IMPORT (Fase 3) · import-once + tombstone
+  //  items: [{ tipo:'evento'|'reminder'|'skip', idEsterno, ... }]
+  //  - 'evento'   -> data.eventi (singolo, origine import_outlook)
+  //  - 'reminder' -> data.reminder (es. OOO come promemoria)
+  //  - 'skip'     -> ignorato
+  //  Dedup: già presente (per idEsterno) o in tombstone -> non reimportato.
+  // ============================================================
+  function tombstone(idEsterno) {
+    if (idEsterno && !data.importCancellati.includes(idEsterno)) data.importCancellati.push(idEsterno);
+  }
+  function importEsisteGia(idEsterno) {
+    if (!idEsterno) return false;
+    if (data.importCancellati.includes(idEsterno)) return true;
+    if (data.eventi.some(e => e.idEsterno === idEsterno)) return true;
+    if (data.reminder.some(r => r.idEsterno === idEsterno)) return true;
+    return false;
+  }
+  function importaBatch(items) {
+    let n = 0;
+    for (const it of items) {
+      if (it.tipo === 'skip') continue;
+      if (importEsisteGia(it.idEsterno)) continue;
+      if (it.tipo === 'reminder') {
+        data.reminder.push({
+          id: uid(), origine: 'import_outlook', stato: 'attivo',
+          giorno: it.giorno, testo: it.titolo, tuttoIlGiorno: true, idEsterno: it.idEsterno,
+        });
+      } else {
+        data.eventi.push({
+          id: uid(), origine: 'import_outlook', stato: 'futuro', anticipoAvviso: 15,
+          titolo: it.titolo, categoria: it.categoria || 'lavoro', intensita: it.intensita || 'media',
+          inizio: it.inizio, fine: it.fineISO || it.fine, idEsterno: it.idEsterno,
+        });
+      }
+      n++;
+    }
+    save();
+    return n;
+  }
+
+  // ============================================================
   //  TASK
   // ============================================================
   function addTask(t) {
@@ -218,7 +264,11 @@ const Store = (() => {
     const r = data.reminder.find(x => x.id === id);
     if (r) { Object.assign(r, patch); save(); }
   }
-  function deleteReminder(id) { data.reminder = data.reminder.filter(x => x.id !== id); save(); }
+  function deleteReminder(id) {
+    const r = data.reminder.find(x => x.id === id);
+    if (r && r.idEsterno) tombstone(r.idEsterno);   // Fase 3: import eliminato non torna
+    data.reminder = data.reminder.filter(x => x.id !== id); save();
+  }
   function reminderAttivi() { return data.reminder.filter(r => r.stato === 'attivo'); }
   function reminderDelGiorno(k) { return reminderAttivi().filter(r => r.giorno === k); }
 
@@ -251,6 +301,7 @@ const Store = (() => {
     uid, dayKey, parseKey, startOfDay, endOfDay, addDays,
     categorie, categoria, upsertCategoria, deleteCategoria,
     addEvento, updateEvento, deleteEvento, deleteSerieIntera, eventiTra, eventiDelGiorno,
+    importEsisteGia, importaBatch,
     addTask, updateTask, deleteTask, completaTask, taskAperte, giorniRitardo,
     addReminder, updateReminder, deleteReminder, reminderAttivi, reminderDelGiorno,
     checkinDi, checkinDiOggi, checkinFattoOggi, salvaCheckin,
