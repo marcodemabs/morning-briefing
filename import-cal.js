@@ -220,7 +220,7 @@ window.ImportCal = (() => {
       <div class="imp-top"><div class="imp-mark"></div>
         <div><h2>Importa da Outlook</h2><div class="sub">Rivedi prima di aggiungere all'agenda</div></div>
         <button class="imp-x" id="imp-close">✕</button></div>
-      <div class="imp-file"><div class="ic">📄</div>
+      <div class="imp-file"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></div>
         <div style="min-width:0"><div class="nm">${(file.name||'Calendario.pdf')}</div>
           <div class="rng">${rng()} · ${items.length} eventi letti</div></div>
         <button class="imp-file re" id="imp-change">Cambia file</button></div>
@@ -237,7 +237,8 @@ window.ImportCal = (() => {
         const chk = it._on ? ' on' : '';
         let time, title, badge = '', barCol = bar;
         if (it.kind === 'ooo'){
-          time = 'tutto il giorno'; title = '🔔 ' + it.titolo;
+          time = 'tutto il giorno';
+          title = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-1px;margin-right:5px"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5 2 5.5H4c.5-.5 2-1.5 2-5.5z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>' + it.titolo;
           badge = '<span class="imp-badge">promemoria</span>'; barCol = 'var(--text-subtle)';
         } else if (it.kind === 'canceled'){
           time = it.ora; title = it.titolo;
