@@ -1,7 +1,7 @@
 /* Service worker · offline-first per il core.
    Fase 3: import calendario da PDF (pdf.js da CDN, on-device).
    La rete resta opzionale: il core funziona offline. */
-const CACHE = 'mb-cache-v3';
+const CACHE = 'mb-cache-v4';
 const ASSETS = [
   './',
   './index.html',
